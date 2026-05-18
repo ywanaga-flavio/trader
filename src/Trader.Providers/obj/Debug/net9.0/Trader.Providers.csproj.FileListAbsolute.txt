@@ -1,0 +1,15 @@
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.csproj.AssemblyReference.cache
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.GeneratedMSBuildEditorConfig.editorconfig
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.AssemblyInfoInputs.cache
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.AssemblyInfo.cs
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.csproj.CoreCompileInputs.cache
+C:\Flavio\proyectos\trader\src\Trader.Providers\bin\Debug\net9.0\Trader.Providers.deps.json
+C:\Flavio\proyectos\trader\src\Trader.Providers\bin\Debug\net9.0\Trader.Providers.dll
+C:\Flavio\proyectos\trader\src\Trader.Providers\bin\Debug\net9.0\Trader.Providers.pdb
+C:\Flavio\proyectos\trader\src\Trader.Providers\bin\Debug\net9.0\Trader.Core.dll
+C:\Flavio\proyectos\trader\src\Trader.Providers\bin\Debug\net9.0\Trader.Core.pdb
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.P.9E0C1D48.Up2Date
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.dll
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\refint\Trader.Providers.dll
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\Trader.Providers.pdb
+C:\Flavio\proyectos\trader\src\Trader.Providers\obj\Debug\net9.0\ref\Trader.Providers.dll

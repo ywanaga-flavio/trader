@@ -1,0 +1,12 @@
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.csproj.AssemblyReference.cache
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.AssemblyInfoInputs.cache
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.AssemblyInfo.cs
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.csproj.CoreCompileInputs.cache
+C:\Flavio\proyectos\trader\src\Trader.Core\bin\Debug\net9.0\Trader.Core.deps.json
+C:\Flavio\proyectos\trader\src\Trader.Core\bin\Debug\net9.0\Trader.Core.dll
+C:\Flavio\proyectos\trader\src\Trader.Core\bin\Debug\net9.0\Trader.Core.pdb
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.dll
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\refint\Trader.Core.dll
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.pdb
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\ref\Trader.Core.dll
