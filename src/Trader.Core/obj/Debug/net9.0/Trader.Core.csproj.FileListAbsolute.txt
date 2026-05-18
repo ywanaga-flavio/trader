@@ -10,3 +10,4 @@ C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.dll
 C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\refint\Trader.Core.dll
 C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.pdb
 C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\ref\Trader.Core.dll
+C:\Flavio\proyectos\trader\src\Trader.Core\obj\Debug\net9.0\Trader.Core.sourcelink.json

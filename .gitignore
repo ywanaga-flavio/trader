@@ -1,0 +1,28 @@
+# .NET
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+logs/
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+.env*.local
+.vercel
+dist/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

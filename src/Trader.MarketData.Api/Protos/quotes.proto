@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+option csharp_namespace = "Trader.MarketData.Api.Grpc";
+
+package quotes;
+
+import "google/protobuf/timestamp.proto";
+
+// ─── Quote service ────────────────────────────────────────────────────────────
+
+service QuoteService {
+  // Returns the latest quote for a single symbol.
+  rpc GetLastQuote (GetLastQuoteRequest) returns (QuoteReply);
+
+  // Returns daily OHLCV bars between two dates.
+  rpc GetDailyQuotes (GetDailyQuotesRequest) returns (DailyQuotesReply);
+
+  // Returns all intraday ticks for a symbol on a given date.
+  rpc GetIntradayQuotes (GetIntradayQuotesRequest) returns (IntradayQuotesReply);
+
+  // Searches instruments by query string, market, or type.
+  rpc SearchInstruments (SearchInstrumentsRequest) returns (InstrumentsReply);
+
+  // Returns the last quote for every instrument of a given type on a given date.
+  rpc GetQuotesByType (GetQuotesByTypeRequest) returns (DailyQuotesReply);
+
+  // Server-streaming: pushes live quotes for the requested symbols.
+  rpc StreamQuotes (StreamQuotesRequest) returns (stream QuoteReply);
+}
+
+// ─── Requests ─────────────────────────────────────────────────────────────────
+
+message GetLastQuoteRequest {
+  string symbol  = 1;
+  // When true the API first tries the configured online provider;
+  // falls back to DB on error (response will include data_source).
+  bool   online  = 2;
+}
+
+message GetDailyQuotesRequest {
+  string symbol     = 1;
+  string date_from  = 2;   // YYYY-MM-DD
+  string date_to    = 3;   // YYYY-MM-DD
+  bool   online     = 4;
+}
+
+message GetIntradayQuotesRequest {
+  string symbol = 1;
+  string date   = 2;   // YYYY-MM-DD
+  bool   online = 3;
+}
+
+message SearchInstrumentsRequest {
+  string query          = 1;
+  string market         = 2;
+  string instrument_type = 3;
+}
+
+message GetQuotesByTypeRequest {
+  string instrument_type = 1;
+  string date            = 2;   // YYYY-MM-DD; empty = today
+}
+
+message StreamQuotesRequest {
+  repeated string symbols = 1;
+}
+
+// ─── Replies ──────────────────────────────────────────────────────────────────
+
+message QuoteReply {
+  string symbol          = 1;
+  double price           = 2;
+  double volume          = 3;
+  double open            = 4;
+  double high            = 5;
+  double low             = 6;
+  double previous_close  = 7;
+  double change          = 8;
+  string change_percent  = 9;
+  google.protobuf.Timestamp timestamp = 10;
+  string provider_id     = 11;
+  string settlement      = 12;
+  // "online" or "database"; "database_fallback" when the online call failed.
+  string data_source     = 13;
+}
+
+message DailyQuoteReply {
+  string symbol          = 1;
+  string date            = 2;   // YYYY-MM-DD
+  double open            = 3;
+  double high            = 4;
+  double low             = 5;
+  double close           = 6;
+  double volume          = 7;
+  double previous_close  = 8;
+  double change          = 9;
+  string change_percent  = 10;
+  string settlement      = 11;
+  string provider_id     = 12;
+}
+
+message IntradayQuoteReply {
+  string symbol          = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  double price           = 3;
+  double volume          = 4;
+  double open            = 5;
+  double high            = 6;
+  double low             = 7;
+  double change          = 8;
+  string change_percent  = 9;
+  string provider_id     = 10;
+}
+
+message InstrumentReply {
+  int32  id              = 1;
+  string ticker          = 2;
+  string description     = 3;
+  string currency        = 4;
+  string market          = 5;
+  string instrument_type = 6;
+  string provider_id     = 7;
+}
+
+message DailyQuotesReply {
+  repeated DailyQuoteReply quotes     = 1;
+  string                   data_source = 2;
+}
+
+message IntradayQuotesReply {
+  repeated IntradayQuoteReply ticks       = 1;
+  string                      data_source = 2;
+}
+
+message InstrumentsReply {
+  repeated InstrumentReply instruments = 1;
+}

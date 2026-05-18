@@ -10,7 +10,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component boundaries, data 
 - Backend: C# / .NET 9, ASP.NET Core, SignalR (real-time)
 - Messaging: MassTransit + RabbitMQ (or Azure Service Bus in cloud)
 - Database: PostgreSQL (TimescaleDB extension for time-series market data)
-- Cache: Redis (quotes, sessions, rate-limit state)
+- Cache: Redis (quotes, sessions, rate-limit state
+)
 - Frontend: Next.js 15 (App Router), React, Tailwind CSS, PWA-ready
 - Containers: Docker + docker-compose (on-prem), Kubernetes (cloud)
 
@@ -37,6 +38,20 @@ src/
       PortfolioPersonalBrokerProvider.cs
       PortfolioPersonalExtensions.cs
       Models/  ← PpiToken, PpiOrder, PpiMarketData, PpiAccount (internal DTOs)
+  Trader.MarketData.Data/        ← EF Core shared data layer (TimescaleDB)
+    Entities/  ← InstrumentType, Instrument, QuoteDaily, QuoteIntraday
+    MarketDataDbContext.cs
+    MarketDataDataExtensions.cs  ← services.AddMarketDataDb(connectionString)
+    Migrations/                  ← EF migrations (InitialCreate includes TimescaleDB hypertables)
+  Trader.MarketData.Api/         ← REST + gRPC market-data query API
+    Controllers/  ← QuotesController, InstrumentsController
+    Grpc/         ← QuoteGrpcService (implements quotes.proto)
+    Services/     ← QuoteQueryService (online/DB fallback logic)
+    Models/       ← QuoteResponse, DailyQuotesResponse, DataSource enum
+    Protos/       ← quotes.proto (6 methods incl. StreamQuotes server-streaming)
+  Trader.MarketData.Worker/      ← Background worker: instrument discovery + polling
+    Configuration/  ← MarketDataWorkerOptions, ProviderConfig, MarketHoursConfig
+    Workers/        ← HistoricalQuoteWorker, IntradayQuoteWorker
 ```
 
 **Rule**: Never instantiate a provider directly. Always inject `IXxxProvider`. Configuration selects the implementation.
@@ -83,6 +98,51 @@ services.AddPortfolioPersonalProviders(configuration.GetSection("PortfolioPerson
 
 See [docs/PROVIDERS.md](docs/PROVIDERS.md) for full provider documentation.
 
+## MarketData Subsystem
+
+Implemented as two separate projects that share the `Trader.MarketData.Data` EF Core layer.
+
+### `Trader.MarketData.Data` — Shared data layer
+
+- **DB tables**: `instrument_types`, `instruments`, `quote_daily` (daily OHLCV, TimescaleDB hypertable on `date`), `quote_intraday` (tick data, hypertable on `timestamp`).
+- Every record carries a `ProviderId` string identifying its data origin.
+- Register with: `services.AddMarketDataDb(connectionString)`
+- Migrations: `dotnet ef migrations add <name> --project src/Trader.MarketData.Data --startup-project src/Trader.MarketData.Api`
+
+### `Trader.MarketData.Api` — REST + gRPC query API
+
+| REST endpoint | Description |
+|---|---|
+| `GET /api/quotes/last/{symbol}?online=false` | Latest quote |
+| `GET /api/quotes/daily/{symbol}?from=&to=&online=false` | Daily OHLCV bars |
+| `GET /api/quotes/intraday/{symbol}?date=&online=false` | Intraday ticks |
+| `GET /api/quotes/by-type/{instrumentType}?date=` | All quotes by instrument type |
+| `GET /api/instruments?query=&market=&type=` | Search instruments |
+
+gRPC service `QuoteService` (see `Protos/quotes.proto`) mirrors the REST API and adds `StreamQuotes` server-streaming.
+
+**Fallback strategy**: `online=false` (default) queries DB only. `online=true` tries the configured provider first; on failure falls back to DB with `dataSource="database_fallback"` in the response.
+
+**Auth**: JWT Bearer (same issuer/audience as rest of system).
+
+**Run**:
+```bash
+cd src/Trader.MarketData.Api
+dotnet run           # REST: http://localhost:5200, gRPC: https://localhost:5201
+```
+
+### `Trader.MarketData.Worker` — Background polling worker
+
+- `HistoricalQuoteWorker`: on startup, discovers instruments via `SearchInstrumentsAsync` and back-fills daily bars from `Historical.FromDate` to today (upsert-skip).
+- `IntradayQuoteWorker`: polls during configured market hours (per-market time-zone schedule), inserts intraday ticks.
+- Config section: `MarketData.Providers[]` — see `src/Trader.MarketData.Worker/appsettings.json` for the full schema.
+
+**Run**:
+```bash
+cd src/Trader.MarketData.Worker
+dotnet run
+```
+
 ## Agent System
 
 Each agent is a background service implementing `IAgent` (or `BackgroundService`). Agents communicate via MassTransit messages, not direct calls.
@@ -123,6 +183,35 @@ npm run dev                   # http://localhost:3000
 - **Security**: All trading operations require JWT auth + role-based authorization. See [docs/SECURITY.md](docs/SECURITY.md).
 - **Logging**: Structured logging via Serilog. Every trade event must be logged with correlation ID.
 - **Testing**: Unit-test provider logic with mock `IXxxProvider`. Integration tests use TestContainers.
+
+## Documentation — Mandatory Rule
+
+> **Every code change, new feature, or modification to existing behaviour MUST be reflected in documentation before the task is considered complete.**
+
+This rule applies to all agents and contributors. Specifically:
+
+1. **Code-level documentation**: Public types, interfaces, and non-obvious methods must have XML doc comments (`<summary>`, `<param>`, `<returns>`). Internal DTOs need at minimum a one-line comment when their purpose is not obvious from the name.
+
+2. **`AGENTS.md` (this file)**: Update the relevant section whenever:
+   - A new provider is implemented or an existing one changes its capabilities or configuration.
+   - A new agent is added or its message contracts change.
+   - A new project/assembly is added to the solution.
+   - Build, test, or run instructions change.
+
+3. **`docs/` files**: Update the corresponding document whenever:
+   - `docs/PROVIDERS.md` — any provider is added, modified, or deprecated.
+   - `docs/ARCHITECTURE.md` — component boundaries, data flows, or the agent list changes.
+   - `docs/SECURITY.md` — auth flows, secrets handling, or authorization rules change.
+   - `docs/RESILIENCE.md` — Polly pipelines or retry strategies change.
+   - `docs/DEPLOYMENT.md` — docker-compose, Kubernetes manifests, or CI/CD pipelines change.
+   - `docs/FRONTEND.md` — component structure, SignalR patterns, or auth flows change.
+   - `docs/PERFORMANCE.md` — latency targets, caching strategy, or profiling tooling change.
+
+**Checklist before marking any task done:**
+- [ ] XML doc comments added/updated for changed public API.
+- [ ] `AGENTS.md` updated if providers, agents, projects, or commands changed.
+- [ ] Relevant `docs/*.md` file(s) updated to reflect the change.
+- [ ] No stale references left in documentation pointing to renamed/deleted files or types.
 
 ## Deployment
 
