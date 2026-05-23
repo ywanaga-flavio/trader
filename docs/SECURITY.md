@@ -11,34 +11,83 @@ Trading systems are high-value targets. Key risks:
 
 ## Authentication & Authorization
 
-### API (internal and external)
+### JWT Token Issuance (`Trader.Api`)
 
-- **JWT Bearer tokens** — issued by `Trader.Api`, short-lived (15 min access + 7 day refresh)
-- **Roles**: `Viewer` (read-only), `Trader` (place orders), `Admin` (manage config/users)
-- **Endpoints that place or cancel orders require `Trader` role** — enforced with `[Authorize(Roles = "Trader")]`
+Tokens are issued by the Gateway API at `POST /api/auth/token`:
+
+```http
+POST /api/auth/token
+Content-Type: application/json
+
+{ "username": "trader", "password": "Trader@1234!" }
+```
+
+Response:
+```json
+{ "token": "eyJ...", "expiresAt": "2026-05-18T15:00:00Z" }
+```
+
+- **Issuer**: `TraderApi` — all downstream services validate against this issuer
+- **Audience**: `TraderClients`
+- **Expiry**: configurable via `Jwt:ExpiryMinutes` (default 60 min)
+- **Signing algorithm**: HMAC-SHA256 (`Jwt:Key` — minimum 32 characters, supplied via env var `JWT__KEY`)
+
+### Roles
+
+| Role | Permissions |
+|------|------------|
+| `admin` | Full access — config, users, trading, market data |
+| `trader` | Place/cancel orders, read market data |
+| `marketdata` | Read-only market data (quotes, instruments) |
+
+**Hardcoded users** are only for initial development. Replace with a database-backed user store and bcrypt-hashed passwords before any production deployment.
+
+### Downstream Service Authorization
+
+All services (`Trader.MarketData.Api`, future agents) validate the same JWT:
+
+```json
+"Jwt": {
+  "Key": "",           // env: JWT__KEY
+  "Issuer": "TraderApi",
+  "Audience": "TraderClients"
+}
+```
+
+- **MarketData endpoints** require role `marketdata` — `[Authorize(Roles = "marketdata")]`
+- **Order endpoints** require role `trader` — `[Authorize(Roles = "trader")]`
 - **SignalR hub** — authenticate with the same JWT via query-string token on WebSocket upgrade
 
 ```csharp
 // Minimum viable authorization on execution endpoints
-[Authorize(Roles = "Trader")]
+[Authorize(Roles = "trader")]
 [HttpPost("orders")]
 public Task<IActionResult> PlaceOrder([FromBody] PlaceOrderRequest request) { ... }
 ```
 
-### Provider API Keys
+### Provider API Keys & Database Secrets
 
 - **Never store secrets in source code or appsettings committed to VCS**
 - Use environment variables, Azure Key Vault, AWS Secrets Manager, or Docker Secrets
 - Rotate keys periodically; revoke on any suspected compromise
 - `ISecretProvider` abstraction in `Trader.Infrastructure` — swap between local env vars and cloud vault
 
+**Environment variables in use:**
+
+| Variable | Used by | Purpose |
+|----------|---------|---------|
+| `JWT__KEY` | All services | JWT signing key (min 32 chars) |
+| `TRADER_QUOTAS_DB_PWD` | `Trader.MarketData.Api`, `Trader.MarketData.Worker` | PostgreSQL password |
+| `PORTFOLIOPERSONAL__AUTHORIZEDCLIENT` | `Trader.Providers` | PPI auth header |
+| `PORTFOLIOPERSONAL__CLIENTKEY` | `Trader.Providers` | PPI auth header |
+| `PORTFOLIOPERSONAL__APIKEY` | `Trader.Providers` | PPI auth header |
+| `PORTFOLIOPERSONAL__APISECRET` | `Trader.Providers` | PPI auth header |
+
 ```json
 // appsettings.json — placeholder only, never real values
 {
-  "Binance": {
-    "ApiKey": "",
-    "SecretKey": ""
-  }
+  "Jwt": { "Key": "" },
+  "PortfolioPersonal": { "ApiKey": "", "ApiSecret": "" }
 }
 ```
 

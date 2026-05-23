@@ -16,10 +16,14 @@ See [docs/SECURITY.md](../../docs/SECURITY.md) for the full security guide.
 - Never hardcode API keys, passwords, or JWT secrets — use `IOptions<T>` bound to env vars
 - `appsettings.json` committed to VCS must contain only empty string placeholders
 - Provider secrets are read only inside the provider class; never passed through events or logs
+- DB password is injected at runtime from `TRADER_QUOTAS_DB_PWD`; never written to appsettings
+- JWT signing key is injected from `JWT__KEY` (minimum 32 characters)
 
 ### Authentication & authorization
-- Every endpoint that places, modifies, or cancels an order **must** have `[Authorize(Roles = "Trader")]`
-- Read-only endpoints require at least `[Authorize]` (any authenticated user)
+- Every endpoint that places, modifies, or cancels an order **must** have `[Authorize(Roles = "trader")]`
+- Market-data read endpoints require `[Authorize(Roles = "marketdata")]`
+- Other read-only endpoints require at least `[Authorize]` (any authenticated user)
+- JWT tokens are issued exclusively by `Trader.Api` (`Issuer: TraderApi`). All other services only validate, never issue.
 - SignalR hub methods that push order state must verify the user owns the resource
 
 ### Input validation

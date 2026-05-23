@@ -2,6 +2,11 @@
 
 Multi-agent trading system for stock and crypto markets. Supports swappable providers, runs cloud or on-premise, with a responsive web/mobile frontend.
 
+## Agent Behaviour — Mandatory Rules
+
+- **Clarification before action**: When any requirement, concept, or scope is ambiguous or unclear, the agent MUST ask clarifying questions before proceeding. Do not assume or infer intent when there is genuine ambiguity.
+- **Explicit confirmation**: Require explicit per-change confirmation before any code edit. Do not treat generic acknowledgements as blanket approval. Present the planned change scope and wait for confirmation.
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component boundaries, data flow, and agent responsibilities.
@@ -23,6 +28,9 @@ See [docs/PROVIDERS.md](docs/PROVIDERS.md) for the full pattern, naming conventi
 
 ```
 src/
+  Trader.Api/                    ← IMPLEMENTED — Gateway API: JWT auth, token issuance
+    Auth/  ← JwtTokenService, LoginRequest, LoginResponse
+    Controllers/  ← AuthController (POST /api/auth/token)
   Trader.Core/
     Providers/
       IQuoteProvider.cs          ← interface: StreamQuotes, GetHistorical, GetOrderBook, SearchInstruments
@@ -52,6 +60,21 @@ src/
   Trader.MarketData.Worker/      ← Background worker: instrument discovery + polling
     Configuration/  ← MarketDataWorkerOptions, ProviderConfig, MarketHoursConfig
     Workers/        ← HistoricalQuoteWorker, IntradayQuoteWorker
+  Trader.News.Data/              ← IMPLEMENTED — EF Core data layer (DB: trader_news)
+    Enums/          ← NewsSourceCategory, NewsClassification, NewsValuation
+    Entities/       ← NewsSource, NewsItem
+    Encryption/     ← IAesEncryptionService, AesEncryptionService (AES-256-CBC)
+    NewsDbContext.cs
+    NewsDataExtensions.cs        ← services.AddNewsDb(connectionString)
+    NewsDbContextFactory.cs      ← design-time factory for EF migrations
+    Migrations/                  ← EF migrations (InitialCreate: news_sources, news_items)
+  Trader.News.Worker/            ← IMPLEMENTED — Hangfire server (max 5 workers, queue "news")
+    Jobs/           ← NewsSchedulerJob (recurring, every minute), ProcessNewsSourceJob
+    Providers/      ← INewsSourceProvider, RssNewsSourceProvider, HtmlNewsSourceProvider,
+                       TwitterNewsSourceProvider (scaffold), NewsSourceProviderFactory
+  Trader.News.Api/               ← IMPLEMENTED — REST API port 5300 + Hangfire dashboard
+    Controllers/    ← NewsSourcesController (CRUD), NewsItemsController (read), NewsJobsController (trigger)
+    Models/         ← NewsDtos (request/response DTOs)
 ```
 
 **Rule**: Never instantiate a provider directly. Always inject `IXxxProvider`. Configuration selects the implementation.
@@ -98,6 +121,49 @@ services.AddPortfolioPersonalProviders(configuration.GetSection("PortfolioPerson
 
 See [docs/PROVIDERS.md](docs/PROVIDERS.md) for full provider documentation.
 
+## Gateway API (`Trader.Api`)
+
+Entry point for all client traffic. Authenticates users and issues JWT tokens consumed by downstream services.
+
+### `POST /api/auth/token`
+
+Request:
+```json
+{ "username": "trader", "password": "Trader@1234!" }
+```
+Response:
+```json
+{ "token": "eyJ...", "expiresAt": "2026-05-18T..." }
+```
+
+Use the token as `Authorization: Bearer <token>` on all downstream API calls.
+
+**Roles** (hardcoded for development — replace with DB-backed store before production):
+
+| Username | Roles |
+|---|---|
+| `admin` | admin, trader, marketdata |
+| `trader` | trader, marketdata |
+| `viewer` | marketdata |
+
+**JWT config** (shared across all services via `Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`):
+```json
+"Jwt": {
+  "Key": "",           // env: JWT__KEY (min 32 chars)
+  "Issuer": "TraderApi",
+  "Audience": "TraderClients",
+  "ExpiryMinutes": 60
+}
+```
+
+**Run**:
+```bash
+cd src/Trader.Api
+dotnet run           # http://localhost:5000
+```
+
+Swagger UI: `http://localhost:5000/swagger`
+
 ## MarketData Subsystem
 
 Implemented as two separate projects that share the `Trader.MarketData.Data` EF Core layer.
@@ -123,7 +189,7 @@ gRPC service `QuoteService` (see `Protos/quotes.proto`) mirrors the REST API and
 
 **Fallback strategy**: `online=false` (default) queries DB only. `online=true` tries the configured provider first; on failure falls back to DB with `dataSource="database_fallback"` in the response.
 
-**Auth**: JWT Bearer (same issuer/audience as rest of system).
+**Auth**: JWT Bearer. Tokens must be issued by `Trader.Api` (`Issuer: TraderApi`). Role `marketdata` is required (all three default users carry it).
 
 **Run**:
 ```bash
@@ -141,6 +207,68 @@ dotnet run           # REST: http://localhost:5200, gRPC: https://localhost:5201
 ```bash
 cd src/Trader.MarketData.Worker
 dotnet run
+```
+
+## News Subsystem
+
+Implemented as three separate projects sharing the `Trader.News.Data` EF Core layer.
+Uses a dedicated PostgreSQL database: `trader_news`.
+
+### `Trader.News.Data` — Shared data layer
+
+- **DB tables**: `news_sources`, `news_items` (both in `trader_news` database).
+- **Enums (code-only)**: `NewsSourceCategory` (Rss, Media, Blog, Social), `NewsClassification` (Economic, Political, Market, Technology, International, Corporate), `NewsValuation` (Positive, Negative, Neutral).
+- **Encryption**: `IAesEncryptionService` / `AesEncryptionService` (AES-256-CBC). Key sourced from env var `NEWS_ENCRYPTION_KEY` or config `NewsEncryption:Key`. Used for `NewsSource.PasswordEncrypted`.
+- Register with: `services.AddNewsDb(connectionString)`
+- Migrations: `dotnet ef migrations add <name> --project src/Trader.News.Data --startup-project src/Trader.News.Api`
+
+### `Trader.News.Worker` — Hangfire job server
+
+- Hangfire server: `WorkerCount = 5`, queue `"news"`, storage = PostgreSQL schema `hangfire` in `trader_news`.
+- `NewsSchedulerJob`: recurring (every minute). Checks all enabled sources against `LastExecution + SearchIntervalMinutes`. Enqueues `ProcessNewsSourceJob` per due source using deterministic job ID `news-source-{id}` to prevent duplicates.
+- `ProcessNewsSourceJob`: fetches news via the appropriate `INewsSourceProvider`, persists new items (dedup by source+URI), updates `LastExecution`.
+- **Providers**:
+  - `RssNewsSourceProvider` — RSS/Atom via `System.ServiceModel.Syndication`
+  - `HtmlNewsSourceProvider` — HTML scraping via `HtmlAgilityPack` (schema.org + Open Graph fallback)
+  - `TwitterNewsSourceProvider` — scaffold only (logs warning, no-op until API key configured)
+  - `NewsSourceProviderFactory` — resolves provider by `NewsSourceCategory`
+
+**Required env vars**:
+
+| Variable | Purpose |
+|---|---|
+| `NEWS_DB_PWD` | PostgreSQL password for `trader_news` |
+| `NEWS_ENCRYPTION_KEY` | AES-256 key (min 1 char, hashed to 32 bytes) for encrypting source passwords |
+
+**Run**:
+```bash
+cd src/Trader.News.Worker
+dotnet run
+```
+
+### `Trader.News.Api` — REST API + Hangfire dashboard
+
+**Port**: 5300 (HTTP) / 5301 (HTTPS)
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/news-sources` | List all news sources (roles: trader, marketdata) |
+| `GET /api/news-sources/{id}` | Get single source |
+| `POST /api/news-sources` | Create source — password encrypted automatically (role: trader) |
+| `PUT /api/news-sources/{id}` | Update source (role: trader) |
+| `DELETE /api/news-sources/{id}` | Delete source + items (role: trader) |
+| `GET /api/news-items` | Query news items with filters: sourceId, classification, from, to, page, pageSize |
+| `GET /api/news-items/{id}` | Get single news item |
+| `POST /api/news-sources/{id}/process` | Manually enqueue processing job (role: trader) |
+| `/hangfire` | Hangfire dashboard (role: admin, JWT required) |
+| `/swagger` | Swagger UI |
+
+**Auth**: JWT Bearer — same `Jwt:Key/Issuer/Audience` config as `Trader.Api`. Roles: `trader`, `marketdata`, `admin`.
+
+**Run**:
+```bash
+cd src/Trader.News.Api
+dotnet run           # http://localhost:5300
 ```
 
 ## Agent System
@@ -167,8 +295,25 @@ dotnet test
 
 # Run locally
 docker-compose up -d          # starts Postgres, Redis, RabbitMQ
+
+# Gateway (issues JWT tokens)
 cd src/Trader.Api
+dotnet run                    # http://localhost:5000
+
+# Set required env vars before starting MarketData services
+$env:TRADER_QUOTAS_DB_PWD = "<db_password>"
+
+# Set required env vars before starting News services
+$env:NEWS_DB_PWD = "<news_db_password>"
+$env:NEWS_ENCRYPTION_KEY = "<aes_key_min_1_char>"
+
+# News Worker (Hangfire job server)
+cd src/Trader.News.Worker
 dotnet run
+
+# News API
+cd src/Trader.News.Api
+dotnet run                    # http://localhost:5300
 
 # Frontend
 cd frontend

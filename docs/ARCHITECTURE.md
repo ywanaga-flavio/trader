@@ -36,14 +36,17 @@ The Trader system is a multi-agent pipeline that ingests market data, evaluates 
 
 ## Component Boundaries
 
-| Component | Responsibility | Key Interfaces |
-|-----------|----------------|----------------|
-| `Trader.Api` | HTTP/WS gateway, auth, rate limiting | — |
-| `Trader.Agents` | Business logic pipeline | `IAgent` |
-| `Trader.Providers` | All external I/O | `IQuoteProvider`, `IBrokerProvider`, `INotificationProvider` |
-| `Trader.Core` | Domain models, events, shared abstractions | `ITradingStrategy`, `IOrderValidator` |
-| `Trader.Infrastructure` | DB, cache, messaging wire-up | `IUnitOfWork`, `IMarketDataRepository` |
-| `frontend/` | Next.js app | — |
+| Component | Responsibility | Key Interfaces | Status |
+|-----------|----------------|----------------|--------|
+| `Trader.Api` | HTTP gateway, JWT token issuance, SignalR hub, rate limiting | — | ✅ Implemented |
+| `Trader.MarketData.Api` | REST + gRPC market-data queries, online/DB fallback | `IQuoteProvider` | ✅ Implemented |
+| `Trader.MarketData.Worker` | Instrument discovery, historical back-fill, intraday polling | `IQuoteProvider` | ✅ Implemented |
+| `Trader.MarketData.Data` | EF Core + TimescaleDB shared data layer | — | ✅ Implemented |
+| `Trader.Agents` | Business logic pipeline | `IAgent` | 🛠️ Planned |
+| `Trader.Providers` | All external I/O (PPI implemented) | `IQuoteProvider`, `IBrokerProvider`, `INotificationProvider` | ✅ PPI done |
+| `Trader.Core` | Domain models, events, shared abstractions | `ITradingStrategy`, `IOrderValidator` | ✅ Implemented |
+| `Trader.Infrastructure` | DB, cache, messaging wire-up | `IUnitOfWork`, `IMarketDataRepository` | 🛠️ Planned |
+| `frontend/` | Next.js app | — | 🛠️ Planned |
 
 ## Agent Responsibilities
 
@@ -92,19 +95,22 @@ IQuoteProvider → MarketDataAgent → QuoteReceived
 ```
 trader/
 ├── src/
-│   ├── Trader.Api/              ASP.NET Core host, SignalR hub
-│   ├── Trader.Agents/           Background agent services
-│   ├── Trader.Core/             Domain models, events, interfaces
-│   ├── Trader.Providers/        Provider implementations
-│   ├── Trader.Infrastructure/   EF Core, Redis, MassTransit config
-│   └── Trader.AppHost/          .NET Aspire orchestration (optional)
-├── frontend/                    Next.js 15 app
+│   ├── Trader.Api/              ✅ Gateway API — JWT token issuance, Swagger UI
+│   ├── Trader.Core/             ✅ Domain models, events, interfaces
+│   ├── Trader.Providers/        ✅ PortfolioPersonal provider (IQuoteProvider + IBrokerProvider)
+│   ├── Trader.MarketData.Data/  ✅ EF Core shared data layer (TimescaleDB)
+│   ├── Trader.MarketData.Api/   ✅ REST + gRPC market-data query API
+│   ├── Trader.MarketData.Worker/ ✅ Background polling worker
+│   ├── Trader.Agents/           🛠️ Background agent services (planned)
+│   ├── Trader.Infrastructure/   🛠️ EF Core, Redis, MassTransit config (planned)
+│   └── Trader.AppHost/          🛠️ .NET Aspire orchestration (optional)
+├── frontend/                    🛠️ Next.js 15 app (planned)
 ├── deploy/
 │   ├── docker-compose.yml       On-premise stack
 │   └── k8s/                     Kubernetes manifests
 ├── tests/
 │   ├── Trader.UnitTests/
-│   └── Trader.IntegrationTests/ (TestContainers)
+│   └── Trader.IntegrationTests/ ✅ TestContainers-based (15 tests)
 └── docs/                        ← you are here
 ```
 
