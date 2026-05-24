@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Trader.News.Api.Models;
 using Trader.News.Data;
-using Trader.News.Data.Enums;
 
 namespace Trader.News.Api.Controllers;
 
@@ -28,7 +27,7 @@ public sealed class NewsItemsController : ControllerBase
     /// Results are ordered by <c>newsDate</c> descending (most recent first).
     /// </summary>
     /// <param name="sourceId">Filter by source ID.</param>
-    /// <param name="classification">Filter by classification enum value.</param>
+    /// <param name="classificationId">Filter by classification ID (integer value of <c>NewsClassification</c>).</param>
     /// <param name="from">UTC lower bound for <c>newsDate</c>.</param>
     /// <param name="to">UTC upper bound for <c>newsDate</c>.</param>
     /// <param name="page">1-based page number (default 1).</param>
@@ -36,7 +35,7 @@ public sealed class NewsItemsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? sourceId,
-        [FromQuery] NewsClassification? classification,
+        [FromQuery] int? classificationId,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] int page = 1,
@@ -51,8 +50,8 @@ public sealed class NewsItemsController : ControllerBase
         if (sourceId.HasValue)
             query = query.Where(n => n.SourceId == sourceId.Value);
 
-        if (classification.HasValue)
-            query = query.Where(n => n.Classification == classification.Value);
+        if (classificationId.HasValue)
+            query = query.Where(n => n.ClassificationId == classificationId.Value);
 
         if (from.HasValue)
             query = query.Where(n => n.NewsDate >= from.Value);

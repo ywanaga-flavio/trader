@@ -1,17 +1,16 @@
 using Trader.News.Data.Entities;
-using Trader.News.Data.Enums;
 
 namespace Trader.News.Worker.Providers;
 
 /// <summary>
 /// Result of fetching a single news article from a source.
+/// Topic classification and sentiment are resolved later by the ML analysis pipeline.
 /// </summary>
 public sealed record NewsFetchResult(
     string Title,
     string? Uri,
     DateTime? NewsDate,
-    string? Summary,
-    NewsClassification Classification);
+    string? Summary);
 
 /// <summary>
 /// Abstracts the mechanism used to fetch news articles from a specific type of source.

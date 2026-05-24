@@ -2,8 +2,10 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Serilog;
 using Trader.News.Data;
+using Trader.News.Worker.Analysis;
 using Trader.News.Worker.Jobs;
 using Trader.News.Worker.Providers;
+using Trader.News.Worker.Summarization;
 
 // ─── Serilog bootstrap ────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -55,6 +57,15 @@ try
     builder.Services.AddSingleton<HtmlNewsSourceProvider>();
     builder.Services.AddSingleton<TwitterNewsSourceProvider>();
     builder.Services.AddSingleton<NewsSourceProviderFactory>();
+
+    // ─── News analysis (ONNX NLI) ─────────────────────────────────────────────
+    builder.Services.AddSingleton<INewsAnalysisService, OnnxNliAnalysisService>();
+
+    // ─── Article summarizer (LLamaSharp) ─────────────────────────────────────
+    builder.Services.Configure<ArticleSummarizerOptions>(
+        builder.Configuration.GetSection("ArticleSummarizer"));
+    builder.Services.AddSingleton<IArticleBodyFetcher, HtmlArticleBodyFetcher>();
+    builder.Services.AddSingleton<IArticleSummarizerService, LlamaArticleSummarizerService>();
 
     // ─── Jobs ─────────────────────────────────────────────────────────────────
     builder.Services.AddScoped<NewsSchedulerJob>();

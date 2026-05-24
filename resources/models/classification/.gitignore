@@ -1,0 +1,14 @@
+# Exclude model binary files — only config and this .gitignore are versioned.
+# Run the download script in README.md to populate this directory.
+*.onnx
+*.bin
+*.pb
+*.gguf
+*.ggml
+sentencepiece.bpe.model
+tokenizer.json
+vocab.txt
+merges.txt
+special_tokens_map.json
+tokenizer_config.json
+config.json

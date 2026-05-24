@@ -3,7 +3,6 @@ using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 using Trader.News.Data.Encryption;
 using Trader.News.Data.Entities;
-using Trader.News.Data.Enums;
 
 namespace Trader.News.Worker.Providers;
 
@@ -86,8 +85,7 @@ public sealed class HtmlNewsSourceProvider : INewsSourceProvider
                     Title: Truncate(ogTitle, 500)!,
                     Uri: ogUrl,
                     NewsDate: DateTime.UtcNow,
-                    Summary: Truncate(ogDescription, 500),
-                    Classification: ClassifyText(ogTitle + " " + ogDescription));
+                    Summary: Truncate(ogDescription, 500));
             }
 
             yield break;
@@ -117,44 +115,8 @@ public sealed class HtmlNewsSourceProvider : INewsSourceProvider
                 Title: Truncate(title, 500)!,
                 Uri: link,
                 NewsDate: DateTime.UtcNow,
-                Summary: Truncate(description, 500),
-                Classification: ClassifyText(title + " " + description));
+                Summary: Truncate(description, 500));
         }
-    }
-
-    /// <summary>
-    /// Naïve keyword-based classification. Replace with ML inference when available.
-    /// </summary>
-    private static NewsClassification ClassifyText(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return NewsClassification.Market;
-
-        var lower = text.ToLowerInvariant();
-
-        if (lower.Contains("bolsa") || lower.Contains("accion") || lower.Contains("stock")
-            || lower.Contains("mercado") || lower.Contains("market"))
-            return NewsClassification.Market;
-
-        if (lower.Contains("inflacion") || lower.Contains("economia") || lower.Contains("economy")
-            || lower.Contains("pbi") || lower.Contains("gdp"))
-            return NewsClassification.Economic;
-
-        if (lower.Contains("gobierno") || lower.Contains("politic") || lower.Contains("election")
-            || lower.Contains("congreso"))
-            return NewsClassification.Political;
-
-        if (lower.Contains("technolog") || lower.Contains("tecnolog") || lower.Contains("software")
-            || lower.Contains("cyber"))
-            return NewsClassification.Technology;
-
-        if (lower.Contains("empresa") || lower.Contains("company") || lower.Contains("ganancia")
-            || lower.Contains("merger"))
-            return NewsClassification.Corporate;
-
-        if (lower.Contains("internacional") || lower.Contains("geopolit") || lower.Contains("guerra"))
-            return NewsClassification.International;
-
-        return NewsClassification.Market;
     }
 
     private static string? Truncate(string? text, int maxLength)

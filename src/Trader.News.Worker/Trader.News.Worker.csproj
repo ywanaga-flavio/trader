@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- MSB3277: benign EFCore version conflict between Npgsql 9.0.x and Trader.News.Data build output -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
     <UserSecretsId>trader-news-worker</UserSecretsId>
   </PropertyGroup>
 
@@ -13,9 +15,13 @@
     <PackageReference Include="Hangfire.NetCore" Version="1.8.*" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.20.*" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.*" />
+    <PackageReference Include="LLamaSharp" Version="0.20.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.20.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.*" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.*" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="0.22.*" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="9.0.*" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="8.*" />

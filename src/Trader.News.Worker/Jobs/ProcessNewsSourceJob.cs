@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Trader.News.Data;
 using Trader.News.Data.Entities;
+using Trader.News.Worker.Analysis;
 using Trader.News.Worker.Providers;
+using Trader.News.Worker.Summarization;
 
 namespace Trader.News.Worker.Jobs;
 
@@ -16,15 +18,24 @@ public sealed class ProcessNewsSourceJob
 {
     private readonly NewsDbContext _db;
     private readonly NewsSourceProviderFactory _providerFactory;
+    private readonly INewsAnalysisService _analysisService;
+    private readonly IArticleBodyFetcher _bodyFetcher;
+    private readonly IArticleSummarizerService _summarizer;
     private readonly ILogger<ProcessNewsSourceJob> _logger;
 
     public ProcessNewsSourceJob(
         NewsDbContext db,
         NewsSourceProviderFactory providerFactory,
+        INewsAnalysisService analysisService,
+        IArticleBodyFetcher bodyFetcher,
+        IArticleSummarizerService summarizer,
         ILogger<ProcessNewsSourceJob> logger)
     {
         _db = db;
         _providerFactory = providerFactory;
+        _analysisService = analysisService;
+        _bodyFetcher = bodyFetcher;
+        _summarizer = summarizer;
         _logger = logger;
     }
 
@@ -73,18 +84,36 @@ public sealed class ProcessNewsSourceJob
                 }
             }
 
+            // If no summary was provided by the feed, try to fetch and summarize the article.
+            var summary = result.Summary;
+            if (string.IsNullOrWhiteSpace(summary) && !string.IsNullOrEmpty(result.Uri) && _summarizer.IsAvailable)
+            {
+                _logger.LogDebug("Fetching article body for summarization: {Uri}", result.Uri);
+                var body = await _bodyFetcher.FetchBodyAsync(result.Uri, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(body))
+                {
+                    summary = await _summarizer.SummarizeAsync(body, cancellationToken);
+                    if (summary is not null)
+                        _logger.LogDebug("Generated summary for {Uri}: {Summary}", result.Uri, summary);
+                }
+            }
+
             var item = new NewsItem
             {
-                SourceId = source.Id,
-                Uri = result.Uri,
-                CreatedAt = DateTime.UtcNow,
-                NewsDate = result.NewsDate,
-                Title = result.Title,
-                Summary = TruncateSummary(result.Summary),
-                Classification = result.Classification,
-                ValuationId = null,
-                ValuationScore = null,
+                SourceId    = source.Id,
+                Uri         = result.Uri,
+                CreatedAt   = DateTime.UtcNow,
+                NewsDate    = result.NewsDate,
+                Title       = result.Title,
+                Summary     = TruncateSummary(summary),
             };
+
+            // Run ML analysis inline; null means model not available — fields stay null.
+            var analysis = await _analysisService.AnalyzeAsync(result.Title, result.Summary, cancellationToken);
+            item.ClassificationId    = analysis?.ClassificationId;
+            item.ClassificationScore = analysis?.ClassificationScore;
+            item.SentimentId         = analysis?.SentimentId;
+            item.SentimentScore      = analysis?.SentimentScore;
 
             _db.NewsItems.Add(item);
             inserted++;

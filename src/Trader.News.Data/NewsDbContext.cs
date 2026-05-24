@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Trader.News.Data.Entities;
-using Trader.News.Data.Enums;
 
 namespace Trader.News.Data;
 
@@ -42,14 +41,12 @@ public class NewsDbContext : DbContext
             e.Property(x => x.Uri).HasMaxLength(2000);
             e.Property(x => x.Title).HasMaxLength(500).IsRequired();
             e.Property(x => x.Summary).HasMaxLength(NewsItem.SummaryMaxLength);
-            e.Property(x => x.Classification)
-             .HasConversion<int>()
-             .IsRequired();
-            e.Property(x => x.ValuationScore).HasPrecision(5, 4);
+            e.Property(x => x.ClassificationScore).HasPrecision(5, 4);
+            e.Property(x => x.SentimentScore).HasPrecision(5, 4);
 
             e.HasIndex(x => x.SourceId);
             e.HasIndex(x => x.NewsDate);
-            e.HasIndex(x => x.Classification);
+            e.HasIndex(x => x.ClassificationId);
             // Avoid duplicate items from the same source
             e.HasIndex(x => new { x.SourceId, x.Uri }).IsUnique().HasFilter("uri IS NOT NULL");
 

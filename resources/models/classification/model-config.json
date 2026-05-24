@@ -1,0 +1,17 @@
+{
+  "modelName": "mDeBERTa-v3-base-mnli-xnli",
+  "huggingFaceRepo": "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+  "modelFile": "model.onnx",
+  "modelSizeMb": 1064,
+  "tokenizerFile": "sentencepiece.bpe.model",
+  "maxSequenceLength": 512,
+  "nliLabelOrder": ["entailment", "neutral", "contradiction"],
+  "entailmentIndex": 0,
+  "specialTokens": {
+    "clsTokenId": 1,
+    "sepTokenId": 2,
+    "padTokenId": 0
+  },
+  "hypothesisTemplate": "This example is {}.",
+  "notes": "FP32 ONNX (1.06 GB). Dynamic INT8 quantization tested — accuracy too degraded (1/5 vs 3/5). Use FP32 only. Multilingual (100+ languages incl. ES+EN). Zero-shot NLI via 'This example is {label}.' template — one forward pass per candidate label."
+}

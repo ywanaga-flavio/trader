@@ -58,12 +58,13 @@ public sealed record NewsItemResponse(
     DateTime? NewsDate,
     string Title,
     string? Summary,
-    NewsClassification Classification,
-    int? ValuationId,
-    double? ValuationScore)
+    int? ClassificationId,
+    double? ClassificationScore,
+    int? SentimentId,
+    double? SentimentScore)
 {
     public static NewsItemResponse FromEntity(NewsItem e) => new(
         e.Id, e.SourceId, e.Uri, e.CreatedAt, e.NewsDate,
-        e.Title, e.Summary, e.Classification,
-        e.ValuationId, e.ValuationScore);
+        e.Title, e.Summary, e.ClassificationId, e.ClassificationScore,
+        e.SentimentId, e.SentimentScore);
 }

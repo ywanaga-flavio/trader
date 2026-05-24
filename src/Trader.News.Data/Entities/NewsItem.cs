@@ -4,7 +4,8 @@ namespace Trader.News.Data.Entities;
 
 /// <summary>
 /// A single news article fetched and persisted by the news processing pipeline.
-/// Valuation fields are populated by a later enrichment step; they are null on initial insert.
+/// Analysis fields (ClassificationId, ClassificationScore, SentimentId, SentimentScore)
+/// are populated by the ONNX NLI analysis step; they are null on initial insert.
 /// </summary>
 public class NewsItem
 {
@@ -34,20 +35,29 @@ public class NewsItem
     /// <summary>Maximum length enforced when persisting <see cref="Summary"/>.</summary>
     public const int SummaryMaxLength = 500;
 
-    /// <summary>Thematic classification of this item.</summary>
-    public NewsClassification Classification { get; set; }
-
     /// <summary>
-    /// Identifier of the valuation assigned by the analysis pipeline.
-    /// Stores the integer value of <see cref="NewsValuation"/>; null until evaluated.
+    /// Integer value of <see cref="NewsClassification"/> assigned by the ML analysis pipeline.
+    /// Null until the analysis pipeline has processed this item.
     /// </summary>
-    public int? ValuationId { get; set; }
+    public int? ClassificationId { get; set; }
 
     /// <summary>
-    /// Confidence or sentiment score produced by the analysis pipeline (0.0–1.0).
+    /// NLI entailment confidence score for <see cref="ClassificationId"/> (0.0–1.0).
     /// Null until evaluated.
     /// </summary>
-    public double? ValuationScore { get; set; }
+    public double? ClassificationScore { get; set; }
+
+    /// <summary>
+    /// Integer value of <see cref="NewsValuation"/> (sentiment) assigned by the ML analysis pipeline.
+    /// Null until the analysis pipeline has processed this item.
+    /// </summary>
+    public int? SentimentId { get; set; }
+
+    /// <summary>
+    /// NLI entailment confidence score for <see cref="SentimentId"/> (0.0–1.0).
+    /// Null until evaluated.
+    /// </summary>
+    public double? SentimentScore { get; set; }
 
     /// <summary>Navigation property to the parent source.</summary>
     public NewsSource? Source { get; set; }

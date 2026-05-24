@@ -26,3 +26,17 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+# ML Models — binary files are not versioned; see resources/models/*/README.md for download instructions
+resources/models/**/*.onnx
+resources/models/**/*.bin
+resources/models/**/*.pb
+resources/models/**/*.gguf
+resources/models/**/*.ggml
+resources/models/**/sentencepiece.bpe.model
+resources/models/**/tokenizer.json
+resources/models/**/vocab.txt
+resources/models/**/merges.txt
+resources/models/**/special_tokens_map.json
+resources/models/**/tokenizer_config.json
+resources/models/**/config.json
